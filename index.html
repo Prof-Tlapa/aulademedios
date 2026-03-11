@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda Académica - Gestión de Horarios</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <main class="container">
+        <header>
+            <hgroup>
+                <h1><i class="fas fa-calendar-alt"></i> Agenda Académica</h1>
+                <p>Sistema de gestión de horarios</p>
+            </hgroup>
+            
+            <section class="admin-panel">
+                <form id="adminForm" onsubmit="event.preventDefault(); toggleAdmin();">
+                    <label for="adminPassword" class="sr-only">Contraseña de administrador</label>
+                    <input type="password" 
+                           id="adminPassword" 
+                           name="adminPassword" 
+                           placeholder="Contraseña de administrador" 
+                           class="admin-input"
+                           autocomplete="off"
+                           required>
+                    <button type="submit" class="admin-btn" id="adminBtn">
+                        <i class="fas fa-lock"></i> Acceder
+                    </button>
+                </form>
+                <output id="adminStatus" class="admin-status"></output>
+            </section>
+        </header>
+
+        <nav class="main-nav">
+            <a href="index.html" class="nav-link active" id="agendaLink">
+                <i class="fas fa-calendar-alt"></i> Agenda
+            </a>
+            <a href="gestion.html" class="nav-link" id="gestionLink" onclick="return checkAccessToGestion();">
+                <i class="fas fa-chalkboard-teacher"></i> Gestión de Materias y Profesores
+            </a>
+        </nav>
+
+        <nav class="date-navigation" aria-label="Navegación de fechas">
+            <button onclick="changeDate(-1)" class="nav-btn" aria-label="Día anterior">
+                <i class="fas fa-chevron-left"></i> <span>Día anterior</span>
+            </button>
+            
+            <section class="date-display">
+                <label for="datePicker" class="sr-only">Seleccionar fecha</label>
+                <input type="date" id="datePicker" class="date-picker" aria-label="Fecha">
+                <button onclick="goToToday()" class="today-btn" aria-label="Ir a hoy">
+                    <i class="fas fa-calendar-day"></i> <span>Hoy</span>
+                </button>
+            </section>
+            
+            <button onclick="changeDate(1)" class="nav-btn" aria-label="Día siguiente">
+                <span>Día siguiente</span> <i class="fas fa-chevron-right"></i>
+            </button>
+        </nav>
+
+        <section class="schedule-container">
+            <header class="schedule-header">
+                <span class="time-column">Horario</span>
+                <span class="subject-column">Materia y Profesor</span>
+                <span class="actions-column">Acciones</span>
+            </header>
+            
+            <section id="schedule" class="schedule-body">
+                <!-- El horario se carga dinámicamente -->
+            </section>
+        </section>
+
+        <article class="summary-section">
+            <h3><i class="fas fa-chart-pie"></i> Resumen del día</h3>
+            <section id="summary" class="summary-content">
+                <!-- Resumen cargado dinámicamente -->
+            </section>
+        </article>
+    </main>
+
+    <!-- Modal para seleccionar materia y profesor (para reservas) -->
+    <dialog id="subjectModal" class="modal">
+        <article class="modal-content">
+            <header>
+                <h2><i class="fas fa-chalkboard-teacher"></i> Seleccionar Materia y Profesor</h2>
+                <button class="close" onclick="closeModal()" aria-label="Cerrar">&times;</button>
+            </header>
+            
+            <section class="subject-list" id="subjectList">
+                <!-- Lista de materias con profesores cargada dinámicamente -->
+            </section>
+        </article>
+    </dialog>
+
+    <!-- Modal para modificar reserva -->
+    <dialog id="editModal" class="modal">
+        <article class="modal-content">
+            <header>
+                <h2><i class="fas fa-edit"></i> Modificar Reserva</h2>
+                <button class="close" onclick="closeEditModal()" aria-label="Cerrar">&times;</button>
+            </header>
+            
+            <section id="editContent">
+                <!-- Contenido cargado dinámicamente -->
+            </section>
+        </article>
+    </dialog>
+
+    <!-- Modal para solicitar contraseña al acceder a gestión -->
+    <dialog id="passwordModal" class="modal">
+        <article class="modal-content">
+            <header>
+                <h2><i class="fas fa-lock"></i> Acceso a Gestión</h2>
+                <button class="close" onclick="closePasswordModal()" aria-label="Cerrar">&times;</button>
+            </header>
+            
+            <section class="password-form">
+                <p>Ingrese la contraseña de administrador para acceder a la gestión de materias y profesores:</p>
+                <input type="password" 
+                       id="gestionPassword" 
+                       placeholder="Contraseña" 
+                       class="admin-input" 
+                       style="width: 100%; margin: 15px 0;">
+                <div class="edit-actions">
+                    <button onclick="verifyPasswordAndRedirect()" class="save-btn">
+                        <i class="fas fa-check"></i> Acceder
+                    </button>
+                    <button onclick="closePasswordModal()" class="cancel-btn">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                </div>
+            </section>
+        </article>
+    </dialog>
+
+    <script src="script.js"></script>
+</body>
+</html>

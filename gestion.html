@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Materias y Profesores</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <main class="container">
+        <header>
+            <hgroup>
+                <h1><i class="fas fa-chalkboard-teacher"></i> Gestión de Materias y Profesores</h1>
+                <p>Administración del catálogo de materias</p>
+            </hgroup>
+            
+            <section class="admin-panel">
+                <form id="adminForm" onsubmit="event.preventDefault(); toggleAdmin();">
+                    <label for="adminPassword" class="sr-only">Contraseña de administrador</label>
+                    <input type="password" 
+                           id="adminPassword" 
+                           name="adminPassword" 
+                           placeholder="Contraseña de administrador" 
+                           class="admin-input"
+                           autocomplete="off"
+                           required>
+                    <button type="submit" class="admin-btn" id="adminBtn">
+                        <i class="fas fa-lock"></i> Acceder
+                    </button>
+                </form>
+                <output id="adminStatus" class="admin-status"></output>
+            </section>
+        </header>
+
+        <nav class="main-nav">
+            <a href="index.html" class="nav-link">
+                <i class="fas fa-calendar-alt"></i> Agenda
+            </a>
+            <a href="gestion.html" class="nav-link active">
+                <i class="fas fa-chalkboard-teacher"></i> Gestión de Materias y Profesores
+            </a>
+        </nav>
+
+        <section class="teacher-management">
+            <div class="management-header">
+                <h2><i class="fas fa-list"></i> Catálogo de Materias y Profesores</h2>
+                <div class="admin-badge" id="adminBadge" style="display: none;">
+                    <i class="fas fa-crown"></i> Modo Administrador
+                </div>
+            </div>
+            
+            <div class="teacher-list-header">
+                <span>Materia</span>
+                <span>Profesor</span>
+                <span>Acciones</span>
+            </div>
+            
+            <section id="teacherList" class="teacher-list">
+                <!-- Lista de materias y profesores cargada dinámicamente -->
+            </section>
+            
+            <div class="add-teacher-form" id="addTeacherForm" style="display: none;">
+                <h3><i class="fas fa-plus-circle"></i> Agregar Nueva Materia</h3>
+                <div class="form-group">
+                    <label for="newSubjectName">Materia:</label>
+                    <input type="text" 
+                           id="newSubjectName" 
+                           placeholder="Ej: Matemáticas" 
+                           class="teacher-input">
+                </div>
+                <div class="form-group">
+                    <label for="newTeacherName">Profesor:</label>
+                    <input type="text" 
+                           id="newTeacherName" 
+                           placeholder="Ej: Profr. Juan Pérez" 
+                           class="teacher-input">
+                </div>
+                <button onclick="addNewSubject()" class="add-teacher-btn">
+                    <i class="fas fa-plus"></i> Agregar al Catálogo
+                </button>
+            </div>
+        </section>
+
+        <article class="info-section">
+            <h3><i class="fas fa-info-circle"></i> Información</h3>
+            <p>Aquí puedes gestionar el catálogo de materias y profesores que estarán disponibles en la agenda principal.</p>
+            <ul>
+                <li><i class="fas fa-check-circle" style="color: #28a745;"></i> Las materias agregadas aparecerán en la agenda para reservar</li>
+                <li><i class="fas fa-edit" style="color: #ffc107;"></i> Solo el administrador puede agregar, editar o eliminar</li>
+                <li><i class="fas fa-trash" style="color: #dc3545;"></i> Eliminar una materia no afecta las reservas existentes</li>
+            </ul>
+        </article>
+    </main>
+
+    <!-- Modal para editar materia/profesor -->
+    <dialog id="editTeacherModal" class="modal">
+        <article class="modal-content">
+            <header>
+                <h2><i class="fas fa-edit"></i> Editar Materia y Profesor</h2>
+                <button class="close" onclick="closeEditTeacherModal()" aria-label="Cerrar">&times;</button>
+            </header>
+            
+            <section class="edit-teacher-form">
+                <input type="hidden" id="editTeacherIndex">
+                
+                <div class="form-group">
+                    <label for="editSubjectName">Materia:</label>
+                    <input type="text" id="editSubjectName" class="teacher-input" placeholder="Nombre de la materia">
+                </div>
+                
+                <div class="form-group">
+                    <label for="editTeacherName">Profesor:</label>
+                    <input type="text" id="editTeacherName" class="teacher-input" placeholder="Nombre del profesor">
+                </div>
+                
+                <div class="edit-actions">
+                    <button onclick="updateTeacher()" class="save-btn">
+                        <i class="fas fa-save"></i> Guardar cambios
+                    </button>
+                    <button onclick="closeEditTeacherModal()" class="cancel-btn">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                </div>
+            </section>
+        </article>
+    </dialog>
+
+    <script src="script.js"></script>
+</body>
+</html>
