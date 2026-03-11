@@ -17,14 +17,14 @@ const STORAGE_KEYS = {
 
 // Horarios específicos (solo horas, sin nombres de bloque)
 const TIME_SLOTS = [
-    { start: '7:00', end: '7:50', isBreak: false },
-    { start: '7:50', end: '8:40', isBreak: false },
-    { start: '8:40', end: '9:30', isBreak: false },
-    { start: '9:30', end: '10:20', isBreak: false },
-    { start: '10:20', end: '10:40', isBreak: true },
-    { start: '10:40', end: '11:30', isBreak: false },
-    { start: '11:30', end: '12:20', isBreak: false },
-    { start: '12:20', end: '13:00', isBreak: false }
+    { start: '7:00', end: '7:45', isBreak: false },
+    { start: '7:45', end: '8:30', isBreak: false },
+    { start: '8:30', end: '9:15', isBreak: false },
+    { start: '9:15', end: '10:00', isBreak: false },
+    { start: '10:00', end: '10:30', isBreak: true },
+    { start: '10:30', end: '11:15', isBreak: false },
+    { start: '11:15', end: '12:00', isBreak: false },
+    { start: '12:00', end: '12:45', isBreak: false }
 ];
 
 
@@ -839,4 +839,5 @@ function updateSummary(reservations) {
                 <small>${stat.blocks.join(' • ')}</small>
             </article>
         `).join('');
+
 }
