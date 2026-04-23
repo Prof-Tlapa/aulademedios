@@ -905,4 +905,27 @@ dialog::backdrop {
         flex-direction: column;
         text-align: center;
     }
+
+    /* Estilo para mostrar el grupo en los slots */
+.slot-grupo {
+    font-size: 0.85em;
+    color: #28a745;
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.slot-grupo i {
+    font-size: 0.9em;
+}
+
+/* En el resumen */
+.grupo-name {
+    color: #28a745;
+    font-weight: 500;
+    font-size: 0.9em;
+    margin: 5px 0;
+}
+
 }
