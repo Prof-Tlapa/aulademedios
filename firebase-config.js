@@ -1,16 +1,13 @@
 // firebase-config.js
 const firebaseConfig = {
-    apiKey: "AIzaSyB3o9vWk1xJQ5L8mNp2R7tUyV3wX4zA6bC8dE9fG",
-    authDomain: "aulademedios.firebaseapp.com",
-    projectId: "aulademedios",
-    storageBucket: "aulademedios.firebasestorage.app",
-    messagingSenderId: "123456789012",
-    appId: "1:123456789012:web:abcdef1234567890"
+  apiKey: "AIzaSyABCDEFghijklmnopqrstuvwxyz12345",  // TU API KEY
+  authDomain: "agenda-escolar.firebaseapp.com",      // TU DOMINIO
+  projectId: "agenda-escolar",                        // TU PROYECTO
+  storageBucket: "agenda-escolar.firebasestorage.app",
+  messagingSenderId: "123456789012",
+  appId: "1:123456789012:web:abcdef123456"
 };
 
 // Inicializar Firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-
-console.log("✅ Firebase conectado correctamente");
-console.log("📁 Base de datos lista:", db);
