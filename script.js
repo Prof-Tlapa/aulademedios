@@ -8,14 +8,13 @@ let currentSlotInfo = null;
 const isGestionPage = window.location.pathname.includes('gestion.html');
 
 // Constantes
-const ADMIN_PASSWORD = "admin123"; // Cambiar por la contraseña deseada
+const ADMIN_PASSWORD = "admin123";
 const STORAGE_KEYS = {
     SUBJECTS: 'academic_subjects_with_teachers',
-    RESERVATIONS: 'academic_reservations_',
     ADMIN_SESSION: 'admin_session'
 };
 
-// Horarios específicos (solo horas, sin nombres de bloque)
+// Horarios específicos
 const TIME_SLOTS = [
     { start: '7:00', end: '7:45', isBreak: false },
     { start: '7:45', end: '8:30', isBreak: false },
@@ -34,7 +33,7 @@ const GRUPOS = [
     '3A', '3B', '3C', '3D', '3E', '3F'
 ];
 
-// Profesores por materia (predefinidos) - ¡AQUÍ PUEDES CAMBIAR LOS NOMBRES!
+// Materias por defecto
 const DEFAULT_SUBJECTS = [
     { name: 'Matemáticas 2', teacher: 'Profr. ARIZAGA BARRAGAN INOCENCIO' },
     { name: 'HISTORIA 1,', teacher: 'Profa. ARREDONDO ARIAS MELISSA ESPERANZA' },
@@ -55,15 +54,15 @@ const DEFAULT_SUBJECTS = [
     { name: 'EDUCACION FISICA 3', teacher: 'Prof. HERNANDEZ MOJICA AMADO' },
     { name: 'ESPAÑOL 1', teacher: 'Profa. LEDUC HERNANDEZ ISELA' },
     { name: 'QUIMICA', teacher: 'Profa. LLAMAS COVARRUBIAS KARLA LIZETTE' },
-     { name: 'INGLES 1', teacher: 'Prof. LOPEZ ACOSTA JOSE ROBERTO' },
+    { name: 'INGLES 1', teacher: 'Prof. LOPEZ ACOSTA JOSE ROBERTO' },
     { name: 'MATEMATICAS 2', teacher: 'Profa. LOPEZ GUARDADO MOISES' },
-     { name: 'HISTORIA 3', teacher: 'Profa. LOPEZ JAUREGUI MARTINELLA' },
+    { name: 'HISTORIA 3', teacher: 'Profa. LOPEZ JAUREGUI MARTINELLA' },
     { name: 'EDUCACION FISICA 2', teacher: 'Prof. LOPEZ LUNA MARIO JEOVANE' },
-     { name: 'HISTORIA 1, GEOGRAFIA', teacher: 'Prof. LOPEZ PANDURO RAMSES' },
+    { name: 'HISTORIA 1, GEOGRAFIA', teacher: 'Prof. LOPEZ PANDURO RAMSES' },
     { name: 'FISICA', teacher: 'Prof. MADRIGAL BAEZ FERNANDO ALBERTO' },
-     { name: 'FISICA', teacher: 'Prof. OCHOA GUERRERO CARLOS IVAN' },
+    { name: 'FISICA', teacher: 'Prof. OCHOA GUERRERO CARLOS IVAN' },
     { name: 'ESPAÑOL 1 Y 3', teacher: 'Profa. OSUNA PEREZ MEIGHAN COLETTE' },
-     { name: 'FCE 2, INT CURRICULAR 3', teacher: 'Profa. PEÑA PAZ JANETH MYCHEL ' },
+    { name: 'FCE 2, INT CURRICULAR 3', teacher: 'Profa. PEÑA PAZ JANETH MYCHEL ' },
     { name: 'MATEMATICAS 1', teacher: 'Profa. RANGEL ARCE DANIELA ALEJANDRA' },
     { name: 'TECNOLOGIA 1 Y 2', teacher: 'Prof. RAMIREZ SERNA LUIS MIGUEL' },
     { name: 'TECNOLOGIA 1 Y 2, TUTORIA 1 Y 2', teacher: 'Prof. RAZO QUEZADA RODOLFO' },
@@ -82,12 +81,20 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
 });
 
-function initializeApp() {
-    // Verificar sesión de administrador al cargar
+async function initializeApp() {
+    // Verificar sesión de administrador
     checkAdminSession();
     
-    // Cargar materias guardadas
+    // Cargar materias (del localStorage - se mantiene igual)
     loadSubjects();
+    
+    // Esperar a que Firebase esté listo
+    if (typeof firebase !== 'undefined') {
+        console.log('✅ Firebase conectado');
+    } else {
+        console.error('❌ Firebase no cargado');
+        showNotification('Error: Firebase no cargado correctamente', 'error');
+    }
     
     // Inicializar según la página
     if (isGestionPage) {
@@ -96,12 +103,273 @@ function initializeApp() {
         initializeAgendaPage();
     }
     
-    // Limpiar campo de contraseña al cargar la página
     clearPasswordField();
 }
 
+// ========== FUNCIONES DE FIREBASE PARA RESERVAS ==========
+
+// Guardar reserva en Firebase
+async function saveReservationToFirebase(reservation) {
+    if (typeof firebase === 'undefined') {
+        console.error('Firebase no disponible');
+        return false;
+    }
+    
+    try {
+        const docId = `${reservation.date}_${reservation.blockIndex}`;
+        await db.collection('reservas').doc(docId).set({
+            blockIndex: reservation.blockIndex,
+            subject: reservation.subject,
+            teacher: reservation.teacher,
+            grupo: reservation.grupo,
+            date: reservation.date,
+            timeSlot: reservation.timeSlot,
+            reservedAt: reservation.reservedAt || new Date().toISOString(),
+            modifiedAt: reservation.modifiedAt || null
+        });
+        console.log('✅ Reserva guardada en Firebase');
+        return true;
+    } catch (error) {
+        console.error('Error guardando en Firebase:', error);
+        return false;
+    }
+}
+
+// Eliminar reserva de Firebase
+async function deleteReservationFromFirebase(date, blockIndex) {
+    if (typeof firebase === 'undefined') return false;
+    
+    try {
+        const docId = `${date}_${blockIndex}`;
+        await db.collection('reservas').doc(docId).delete();
+        console.log('✅ Reserva eliminada de Firebase');
+        return true;
+    } catch (error) {
+        console.error('Error eliminando de Firebase:', error);
+        return false;
+    }
+}
+
+// Cargar reservas desde Firebase
+async function loadReservationsFromFirebase(date) {
+    if (typeof firebase === 'undefined') {
+        console.error('Firebase no disponible');
+        return [];
+    }
+    
+    try {
+        const snapshot = await db.collection('reservas')
+            .where('date', '==', date)
+            .get();
+        
+        const reservations = [];
+        snapshot.forEach(doc => {
+            reservations.push(doc.data());
+        });
+        
+        console.log(`📋 Cargadas ${reservations.length} reservas para ${date}`);
+        return reservations;
+    } catch (error) {
+        console.error('Error cargando reservas:', error);
+        return [];
+    }
+}
+
+// ========== FUNCIONES MODIFICADAS PARA USAR FIREBASE ==========
+
+// Función principal para cargar el horario (modificada)
+async function loadSchedule(date) {
+    if (isGestionPage) return;
+    
+    const scheduleSection = document.getElementById('schedule');
+    if (!scheduleSection) return;
+    
+    scheduleSection.innerHTML = '<div class="spinner" role="status" aria-label="Cargando horario"></div>';
+    
+    // Cargar reservas desde Firebase
+    const reservations = await loadReservationsFromFirebase(date);
+    
+    scheduleSection.innerHTML = '';
+    
+    TIME_SLOTS.forEach((slot, index) => {
+        const reservation = reservations.find(r => r.blockIndex === index);
+        const slotElement = createTimeSlot(index, slot, reservation);
+        scheduleSection.appendChild(slotElement);
+    });
+    
+    updateSummary(reservations);
+}
+
+// Función para reservar (modificada)
+async function reserveSlot(blockIndex, subjectIndex, grupo) {
+    if (isGestionPage) return;
+    
+    const date = formatDate(currentDate);
+    const timeSlot = TIME_SLOTS[blockIndex];
+    const subject = subjects[subjectIndex];
+    
+    if (timeSlot.isBreak) {
+        showNotification('No se puede reservar en horario de receso', 'warning');
+        closeGrupoModal();
+        return;
+    }
+    
+    // Verificar si ya existe una reserva
+    const existingReservations = await loadReservationsFromFirebase(date);
+    const existingReservation = existingReservations.find(r => r.blockIndex === blockIndex);
+    
+    if (existingReservation) {
+        if (confirm('Ya hay una reserva en este horario. ¿Desea reemplazarla?')) {
+            await deleteReservationFromFirebase(date, blockIndex);
+        } else {
+            closeGrupoModal();
+            return;
+        }
+    }
+    
+    const newReservation = {
+        blockIndex: blockIndex,
+        subject: subject.name,
+        teacher: subject.teacher,
+        grupo: grupo,
+        timeSlot: timeSlot,
+        date: date,
+        reservedAt: new Date().toISOString(),
+        modifiedAt: null
+    };
+    
+    const success = await saveReservationToFirebase(newReservation);
+    
+    if (success) {
+        closeGrupoModal();
+        await loadSchedule(date);
+        showNotification(`Grupo ${grupo}: "${subject.name}" con ${subject.teacher} reservada`, 'success');
+    } else {
+        showNotification('Error al guardar la reserva', 'error');
+    }
+}
+
+// Editar reserva (modificada)
+async function editReservation(blockIndex, currentSubject, currentTeacher, currentGrupo) {
+    if (isGestionPage) return;
+    
+    if (!isAdmin) {
+        showNotification('Solo el administrador puede modificar reservas', 'warning');
+        return;
+    }
+    
+    const modal = document.getElementById('editModal');
+    const editContent = document.getElementById('editContent');
+    const timeSlot = TIME_SLOTS[blockIndex];
+    
+    if (!modal || !editContent) return;
+    
+    editContent.innerHTML = `
+        <p><strong>Horario:</strong> ${timeSlot.start} - ${timeSlot.end}</p>
+        <p><strong>Materia actual:</strong> ${currentSubject}</p>
+        <p><strong>Profesor actual:</strong> ${currentTeacher}</p>
+        <p><strong>Grupo actual:</strong> ${currentGrupo}</p>
+        <h4 style="margin: 15px 0 10px 0;">Seleccionar nueva materia:</h4>
+        <section class="subject-list" id="editSubjectList">
+            ${subjects.map((subject, index) => `
+                <article class="subject-item" onclick="selectEditSubject(${blockIndex}, ${index}, '${currentGrupo}')">
+                    <span class="subject-info">
+                        <span class="subject-name"><i class="fas fa-book"></i> ${subject.name}</span>
+                        <span class="teacher-name"><i class="fas fa-chalkboard-teacher"></i> ${subject.teacher}</span>
+                    </span>
+                    <i class="fas fa-chevron-right"></i>
+                </article>
+            `).join('')}
+        </section>
+        <footer style="margin-top: 20px;">
+            <button onclick="showEditGrupoModal(${blockIndex}, '${currentSubject}', '${currentTeacher}')" class="edit-btn" style="width: 100%; margin-bottom: 10px;">
+                <i class="fas fa-users"></i> Cambiar solo el grupo
+            </button>
+            <button onclick="deleteReservationHandler(${blockIndex})" class="delete-btn" style="width: 100%;">
+                <i class="fas fa-trash"></i> Eliminar reserva
+            </button>
+        </footer>
+    `;
+    
+    modal.showModal();
+}
+
+// Select edit subject (modificada)
+async function selectEditSubject(blockIndex, subjectIndex, currentGrupo) {
+    const date = formatDate(currentDate);
+    const subject = subjects[subjectIndex];
+    const timeSlot = TIME_SLOTS[blockIndex];
+    
+    const updatedReservation = {
+        blockIndex: blockIndex,
+        subject: subject.name,
+        teacher: subject.teacher,
+        grupo: currentGrupo,
+        timeSlot: timeSlot,
+        date: date,
+        reservedAt: new Date().toISOString(),
+        modifiedAt: new Date().toISOString()
+    };
+    
+    const success = await saveReservationToFirebase(updatedReservation);
+    
+    if (success) {
+        await loadSchedule(date);
+        closeEditModal();
+        showNotification('Reserva actualizada correctamente', 'success');
+    } else {
+        showNotification('Error al actualizar', 'error');
+    }
+}
+
+// Actualizar grupo (modificada)
+async function updateReservationGrupo(blockIndex, currentSubject, currentTeacher, newGrupo) {
+    const date = formatDate(currentDate);
+    const timeSlot = TIME_SLOTS[blockIndex];
+    
+    const updatedReservation = {
+        blockIndex: blockIndex,
+        subject: currentSubject,
+        teacher: currentTeacher,
+        grupo: newGrupo,
+        timeSlot: timeSlot,
+        date: date,
+        reservedAt: new Date().toISOString(),
+        modifiedAt: new Date().toISOString()
+    };
+    
+    const success = await saveReservationToFirebase(updatedReservation);
+    
+    if (success) {
+        await loadSchedule(date);
+        closeGrupoModal();
+        showNotification('Grupo actualizado correctamente', 'success');
+    } else {
+        showNotification('Error al actualizar grupo', 'error');
+    }
+}
+
+// Eliminar reserva (modificada)
+async function deleteReservationHandler(blockIndex) {
+    if (isGestionPage) return;
+    
+    if (confirm('¿Está seguro de eliminar esta reserva?')) {
+        const date = formatDate(currentDate);
+        const success = await deleteReservationFromFirebase(date, blockIndex);
+        
+        if (success) {
+            await loadSchedule(date);
+            closeEditModal();
+            showNotification('Reserva eliminada correctamente', 'success');
+        } else {
+            showNotification('Error al eliminar', 'error');
+        }
+    }
+}
+
+// ========== RESTO DE FUNCIONES (NO CAMBIAN) ==========
+
 function checkAdminSession() {
-    // Verificar si hay una sesión de administrador activa
     const session = sessionStorage.getItem(STORAGE_KEYS.ADMIN_SESSION);
     if (session === 'true') {
         isAdmin = true;
@@ -130,7 +398,6 @@ function updateUIForAdmin() {
         adminStatus.className = 'admin-status';
     }
     
-    // Actualizar UI según página
     if (isGestionPage) {
         updateGestionPageUI();
     } else {
@@ -141,22 +408,17 @@ function updateUIForAdmin() {
 function initializeAgendaPage() {
     console.log('Inicializando página de agenda');
     
-    // Configurar date picker
     const datePicker = document.getElementById('datePicker');
     if (datePicker) {
         datePicker.valueAsDate = currentDate;
-        
-        // Event listeners
         datePicker.addEventListener('change', function() {
             currentDate = new Date(this.value);
             loadSchedule(formatDate(currentDate));
         });
     }
     
-    // Cargar horario
     loadSchedule(formatDate(currentDate));
     
-    // Cerrar modales con Escape
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') {
             closeModal();
@@ -169,7 +431,6 @@ function initializeAgendaPage() {
 function initializeGestionPage() {
     console.log('Inicializando página de gestión');
     
-    // Verificar si hay sesión de admin, si no, redirigir
     if (!isAdmin) {
         showNotification('Debe iniciar sesión como administrador para acceder a esta página', 'warning');
         setTimeout(() => {
@@ -178,18 +439,12 @@ function initializeGestionPage() {
         return;
     }
     
-    // Cargar lista de profesores
     loadTeacherList();
-    
-    // Cargar lista de grupos en los selects
     loadGruposOptions();
-    
-    // Actualizar UI
     updateGestionPageUI();
 }
 
 function loadGruposOptions() {
-    // Llenar selects de grupos en los formularios
     const grupoSelects = document.querySelectorAll('.grupo-select');
     grupoSelects.forEach(select => {
         select.innerHTML = '<option value="">Seleccionar grupo</option>';
@@ -202,17 +457,15 @@ function loadGruposOptions() {
     });
 }
 
-// Función para verificar acceso a gestión
 function checkAccessToGestion() {
     if (!isAdmin) {
-        // Mostrar modal de contraseña
         const modal = document.getElementById('passwordModal');
         if (modal) {
             modal.showModal();
         }
-        return false; // Prevenir navegación inmediata
+        return false;
     }
-    return true; // Permitir navegación
+    return true;
 }
 
 function verifyPasswordAndRedirect() {
@@ -220,14 +473,9 @@ function verifyPasswordAndRedirect() {
     const password = passwordInput.value;
     
     if (password === ADMIN_PASSWORD) {
-        // Establecer sesión de administrador
         sessionStorage.setItem(STORAGE_KEYS.ADMIN_SESSION, 'true');
         isAdmin = true;
-        
-        // Cerrar modal
         closePasswordModal();
-        
-        // Redirigir a gestión
         window.location.href = 'gestion.html';
     } else {
         showNotification('Contraseña incorrecta', 'error');
@@ -246,7 +494,6 @@ function closePasswordModal() {
     }
 }
 
-// Funciones de utilidad
 function formatDate(date) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -271,22 +518,16 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
-// Funciones de administración
 function toggleAdmin() {
     const passwordInput = document.getElementById('adminPassword');
     const password = passwordInput.value;
     
     if (!isAdmin && password === ADMIN_PASSWORD) {
-        // Activar modo administrador
         isAdmin = true;
         sessionStorage.setItem(STORAGE_KEYS.ADMIN_SESSION, 'true');
-        
-        // Actualizar UI
         updateUIForAdmin();
-        
         showNotification('Modo administrador activado', 'success');
     } else if (isAdmin) {
-        // Desactivar modo administrador
         isAdmin = false;
         sessionStorage.removeItem(STORAGE_KEYS.ADMIN_SESSION);
         
@@ -305,7 +546,6 @@ function toggleAdmin() {
         
         showNotification('Modo administrador desactivado', 'info');
         
-        // Si estamos en gestión, redirigir a agenda
         if (isGestionPage) {
             setTimeout(() => {
                 window.location.href = 'index.html';
@@ -315,10 +555,8 @@ function toggleAdmin() {
         showNotification('Contraseña incorrecta', 'error');
     }
     
-    // Limpiar campo de contraseña
     passwordInput.value = '';
     
-    // Actualizar UI según página
     if (!isGestionPage) {
         updateSlotButtons();
     } else {
@@ -349,7 +587,6 @@ function updateGestionPageUI() {
     });
 }
 
-// Funciones de navegación de fechas (solo en agenda)
 function changeDate(days) {
     if (isGestionPage) return;
     
@@ -368,13 +605,11 @@ function goToToday() {
     loadSchedule(formatDate(currentDate));
 }
 
-// Funciones de gestión de materias y profesores
 function loadSubjects() {
     const savedSubjects = localStorage.getItem(STORAGE_KEYS.SUBJECTS);
     if (savedSubjects) {
         subjects = JSON.parse(savedSubjects);
     } else {
-        // Usar materias por defecto con profesores
         subjects = [...DEFAULT_SUBJECTS];
         saveSubjects();
     }
@@ -383,7 +618,7 @@ function loadSubjects() {
 function saveSubjects() {
     localStorage.setItem(STORAGE_KEYS.SUBJECTS, JSON.stringify(subjects));
     if (isGestionPage) {
-        loadTeacherList(); // Actualizar la lista visual
+        loadTeacherList();
     }
 }
 
@@ -432,7 +667,6 @@ function addNewSubject() {
     const newTeacher = teacherInput.value.trim();
     
     if (newSubject && newTeacher) {
-        // Verificar si ya existe
         const exists = subjects.some(s => s.name.toLowerCase() === newSubject.toLowerCase());
         
         if (!exists) {
@@ -475,7 +709,6 @@ function updateTeacher() {
     const newTeacher = document.getElementById('editTeacherName').value.trim();
     
     if (newSubject && newTeacher) {
-        // Verificar si ya existe otra materia con el mismo nombre
         const exists = subjects.some((s, i) => 
             i !== index && s.name.toLowerCase() === newSubject.toLowerCase()
         );
@@ -514,7 +747,6 @@ function closeEditTeacherModal() {
     }
 }
 
-// Funciones de reserva (solo en agenda)
 function showSubjectModal(blockIndex) {
     if (isGestionPage) return;
     
@@ -564,7 +796,6 @@ function closeModal() {
 
 function selectSubject(subjectIndex) {
     if (currentSlotInfo) {
-        // Después de seleccionar materia, mostrar selector de grupo
         showGrupoModal(currentSlotInfo.blockIndex, subjectIndex);
         closeModal();
     }
@@ -601,112 +832,6 @@ function closeGrupoModal() {
     }
 }
 
-function reserveSlot(blockIndex, subjectIndex, grupo) {
-    if (isGestionPage) return;
-    
-    const date = formatDate(currentDate);
-    const reservations = getReservations(date);
-    const timeSlot = TIME_SLOTS[blockIndex];
-    const subject = subjects[subjectIndex];
-    
-    // No permitir reservar en receso
-    if (timeSlot.isBreak) {
-        showNotification('No se puede reservar en horario de receso', 'warning');
-        closeGrupoModal();
-        return;
-    }
-    
-    // Verificar si ya existe una reserva en este bloque
-    const existingReservation = reservations.find(r => r.blockIndex === blockIndex);
-    if (existingReservation) {
-        if (confirm('Ya hay una reserva en este horario. ¿Desea reemplazarla?')) {
-            // Eliminar la reserva existente
-            const index = reservations.findIndex(r => r.blockIndex === blockIndex);
-            reservations.splice(index, 1);
-        } else {
-            closeGrupoModal();
-            return;
-        }
-    }
-    
-    reservations.push({
-        blockIndex: blockIndex,
-        subject: subject.name,
-        teacher: subject.teacher,
-        grupo: grupo,
-        timeSlot: timeSlot,
-        date: date,
-        reservedAt: new Date().toISOString()
-    });
-    
-    saveReservations(date, reservations);
-    loadSchedule(date);
-    closeGrupoModal();
-    showNotification(`Grupo ${grupo}: "${subject.name}" con ${subject.teacher} reservada`, 'success');
-}
-
-function editReservation(blockIndex, currentSubject, currentTeacher, currentGrupo) {
-    if (isGestionPage) return;
-    
-    if (!isAdmin) {
-        showNotification('Solo el administrador puede modificar reservas', 'warning');
-        return;
-    }
-    
-    const modal = document.getElementById('editModal');
-    const editContent = document.getElementById('editContent');
-    const timeSlot = TIME_SLOTS[blockIndex];
-    
-    if (!modal || !editContent) return;
-    
-    editContent.innerHTML = `
-        <p><strong>Horario:</strong> ${timeSlot.start} - ${timeSlot.end}</p>
-        <p><strong>Materia actual:</strong> ${currentSubject}</p>
-        <p><strong>Profesor actual:</strong> ${currentTeacher}</p>
-        <p><strong>Grupo actual:</strong> ${currentGrupo}</p>
-        <h4 style="margin: 15px 0 10px 0;">Seleccionar nueva materia:</h4>
-        <section class="subject-list" id="editSubjectList">
-            ${subjects.map((subject, index) => `
-                <article class="subject-item" onclick="selectEditSubject(${blockIndex}, ${index}, '${currentGrupo}')">
-                    <span class="subject-info">
-                        <span class="subject-name"><i class="fas fa-book"></i> ${subject.name}</span>
-                        <span class="teacher-name"><i class="fas fa-chalkboard-teacher"></i> ${subject.teacher}</span>
-                    </span>
-                    <i class="fas fa-chevron-right"></i>
-                </article>
-            `).join('')}
-        </section>
-        <footer style="margin-top: 20px;">
-            <button onclick="showEditGrupoModal(${blockIndex}, '${currentSubject}', '${currentTeacher}')" class="edit-btn" style="width: 100%; margin-bottom: 10px;">
-                <i class="fas fa-users"></i> Cambiar solo el grupo
-            </button>
-            <button onclick="deleteReservation(${blockIndex})" class="delete-btn" style="width: 100%;">
-                <i class="fas fa-trash"></i> Eliminar reserva
-            </button>
-        </footer>
-    `;
-    
-    modal.showModal();
-}
-
-function selectEditSubject(blockIndex, subjectIndex, currentGrupo) {
-    const date = formatDate(currentDate);
-    const reservations = getReservations(date);
-    const subject = subjects[subjectIndex];
-    
-    const index = reservations.findIndex(r => r.blockIndex === blockIndex);
-    if (index !== -1) {
-        reservations[index].subject = subject.name;
-        reservations[index].teacher = subject.teacher;
-        reservations[index].grupo = currentGrupo;
-        reservations[index].modifiedAt = new Date().toISOString();
-        saveReservations(date, reservations);
-        loadSchedule(date);
-        closeEditModal();
-        showNotification('Reserva actualizada correctamente', 'success');
-    }
-}
-
 function showEditGrupoModal(blockIndex, currentSubject, currentTeacher) {
     closeEditModal();
     
@@ -733,80 +858,11 @@ function showEditGrupoModal(blockIndex, currentSubject, currentTeacher) {
     modal.showModal();
 }
 
-function updateReservationGrupo(blockIndex, currentSubject, currentTeacher, newGrupo) {
-    const date = formatDate(currentDate);
-    const reservations = getReservations(date);
-    
-    const index = reservations.findIndex(r => r.blockIndex === blockIndex);
-    if (index !== -1) {
-        reservations[index].grupo = newGrupo;
-        reservations[index].modifiedAt = new Date().toISOString();
-        saveReservations(date, reservations);
-        loadSchedule(date);
-        closeGrupoModal();
-        showNotification('Grupo actualizado correctamente', 'success');
-    }
-}
-
-function deleteReservation(blockIndex) {
-    if (isGestionPage) return;
-    
-    if (confirm('¿Está seguro de eliminar esta reserva?')) {
-        const date = formatDate(currentDate);
-        const reservations = getReservations(date);
-        
-        const index = reservations.findIndex(r => r.blockIndex === blockIndex);
-        if (index !== -1) {
-            reservations.splice(index, 1);
-            saveReservations(date, reservations);
-            loadSchedule(date);
-            closeEditModal();
-            showNotification('Reserva eliminada correctamente', 'success');
-        }
-    }
-}
-
 function closeEditModal() {
     const modal = document.getElementById('editModal');
     if (modal) {
         modal.close();
     }
-}
-
-// Funciones de almacenamiento
-function getReservations(date) {
-    const key = STORAGE_KEYS.RESERVATIONS + date;
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : [];
-}
-
-function saveReservations(date, reservations) {
-    const key = STORAGE_KEYS.RESERVATIONS + date;
-    localStorage.setItem(key, JSON.stringify(reservations));
-}
-
-// Función principal para cargar el horario (solo en agenda)
-function loadSchedule(date) {
-    if (isGestionPage) return;
-    
-    const scheduleSection = document.getElementById('schedule');
-    if (!scheduleSection) return;
-    
-    scheduleSection.innerHTML = '<div class="spinner" role="status" aria-label="Cargando horario"></div>';
-    
-    // Simular carga asíncrona
-    setTimeout(() => {
-        scheduleSection.innerHTML = '';
-        const reservations = getReservations(date);
-        
-        TIME_SLOTS.forEach((slot, index) => {
-            const reservation = reservations.find(r => r.blockIndex === index);
-            const slotElement = createTimeSlot(index, slot, reservation);
-            scheduleSection.appendChild(slotElement);
-        });
-        
-        updateSummary(reservations);
-    }, 300);
 }
 
 function createTimeSlot(blockIndex, slot, reservation) {
@@ -818,12 +874,10 @@ function createTimeSlot(blockIndex, slot, reservation) {
         slotElement.className = `time-slot ${reservation ? 'reserved-slot' : ''}`;
     }
     
-    // Columna de hora
     const timeSpan = document.createElement('span');
     timeSpan.className = 'slot-time';
     timeSpan.innerHTML = `<span class="slot-time-range">${slot.start} - ${slot.end}</span>`;
     
-    // Columna de materia y profesor
     const subjectSpan = document.createElement('span');
     subjectSpan.className = 'slot-subject';
     
@@ -839,42 +893,34 @@ function createTimeSlot(blockIndex, slot, reservation) {
             <span class="slot-grupo"><i class="fas fa-users"></i> Grupo ${reservation.grupo}</span>
         `;
     } else {
-        subjectSpan.innerHTML = `
-            <em>Disponible</em>
-        `;
+        subjectSpan.innerHTML = `<em>Disponible</em>`;
     }
     
-    // Columna de acciones
     const actionsSpan = document.createElement('span');
     actionsSpan.className = 'slot-actions';
     
     if (!slot.isBreak) {
         if (reservation) {
-            // Slot reservado
             const editBtn = document.createElement('button');
             editBtn.className = 'edit-btn';
             editBtn.onclick = () => editReservation(blockIndex, reservation.subject, reservation.teacher, reservation.grupo);
             editBtn.disabled = !isAdmin;
             editBtn.innerHTML = '<i class="fas fa-edit"></i>';
-            editBtn.setAttribute('aria-label', 'Editar reserva');
             
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'delete-btn';
-            deleteBtn.onclick = () => deleteReservation(blockIndex);
+            deleteBtn.onclick = () => deleteReservationHandler(blockIndex);
             deleteBtn.disabled = !isAdmin;
             deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-            deleteBtn.setAttribute('aria-label', 'Eliminar reserva');
             
             actionsSpan.appendChild(editBtn);
             actionsSpan.appendChild(deleteBtn);
         } else {
-            // Slot disponible
             const reserveBtn = document.createElement('button');
             reserveBtn.className = 'reserve-btn';
             reserveBtn.onclick = () => showSubjectModal(blockIndex);
             reserveBtn.disabled = !isAdmin;
             reserveBtn.innerHTML = '<i class="fas fa-plus"></i> Reservar';
-            reserveBtn.setAttribute('aria-label', 'Reservar horario');
             
             actionsSpan.appendChild(reserveBtn);
         }
@@ -918,7 +964,6 @@ function updateSummary(reservations) {
         return;
     }
     
-    // Agrupar por materia, profesor y grupo
     const subjectStats = {};
     reservations.forEach(r => {
         const key = `${r.subject}|${r.teacher}|${r.grupo}`;
@@ -946,4 +991,3 @@ function updateSummary(reservations) {
             </article>
         `).join('');
 }
-   
